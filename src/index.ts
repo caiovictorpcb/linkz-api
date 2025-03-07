@@ -8,7 +8,7 @@ import { formShortenedUrl, getRequestUserIp } from './utils';
 export const fastify: FastifyInstance = Fastify({ logger: true });
 
 fastify.register(fastifyPostgres, {
-  connectionString: `postgres://${process.env.DB_USER}:${process.env.DB_PASSWORD}@${process.env.DB_HOST}:${process.env.DB_PORT}/${process.env.DB_NAME}?sslmode=require`,
+  connectionString: process.env.DB_CONNECTION_URL,
 });
 
 fastify.post<{ Body: ShortUrlBody }>('/short', {
