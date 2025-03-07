@@ -1,0 +1,21 @@
+{
+  "name": "fastify",
+  "module": "index.ts",
+  "type": "module",
+  "scripts": {
+    "start": "bun run index.ts",
+    "dev": "bun run --watch src/index.ts"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.2.4",
+    "@types/node": "^22.13.9"
+  },
+  "peerDependencies": {
+    "typescript": "^5.8.2"
+  },
+  "dependencies": {
+    "@fastify/postgres": "^6.0.2",
+    "fastify": "^5.2.1",
+    "pg": "^8.13.3"
+  }
+}
