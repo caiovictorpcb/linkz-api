@@ -11,21 +11,26 @@ fastify.register(fastifyPostgres, {
   connectionString: process.env.DB_CONNECTION_URL,
 });
 
-fastify.post<{ Body: ShortUrlBody }>('/short', {
+fastify.post<{ Body: string }>('/short', {
   config: { rateLimit: { max: 10, timeWindow: '1 minute' } },
-}, async (request: FastifyRequest<{ Body: ShortUrlBody }>): Promise<string> => {
+}, async (request: FastifyRequest<{ Body: string }>): Promise<{ shortUrl: string }> => {
   const clientIp = getRequestUserIp(request);
-  const fullUrl = request.body.url;
+  const body = JSON.parse(request.body) as ShortUrlBody
+  console.log({body})
   const urlAlias = gerarStringUnica();
   const formedUrl = formShortenedUrl(urlAlias);
+  const isUrl = body.url.includes("http") || body.url.includes("https");
+  if(!body.url || body.url.includes("DROP") || body.url.includes("UPDATE") || !isUrl) {
+    throw new Error('URL is required')
+  }
   const payload: CreateUserUrlPayload = {
-    full_url: fullUrl,
+    full_url: body.url,
     shortened_url: formedUrl,
     alias: urlAlias,
     user_ip: clientIp,
   };
   const shortenedUrl = await insertShortenedUrl(payload);
-  return shortenedUrl;
+  return {shortUrl: shortenedUrl};
 });
 
 fastify.get('/my-urls', {
