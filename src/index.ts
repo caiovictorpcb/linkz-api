@@ -16,7 +16,6 @@ fastify.post<{ Body: string }>('/short', {
 }, async (request: FastifyRequest<{ Body: string }>): Promise<{ shortUrl: string }> => {
   const clientIp = getRequestUserIp(request);
   const body = JSON.parse(request.body) as ShortUrlBody
-  console.log({body})
   const urlAlias = gerarStringUnica();
   const formedUrl = formShortenedUrl(urlAlias);
   const isUrl = body.url.includes("http") || body.url.includes("https");
