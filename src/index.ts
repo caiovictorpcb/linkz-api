@@ -11,23 +11,34 @@ fastify.register(fastifyPostgres, {
   connectionString: process.env.DB_CONNECTION_URL,
 });
 
-fastify.post<{ Body: string }>('/short', {
+fastify.get<{ Querystring: { url: string } }>('/short', {
   config: { rateLimit: { max: 10, timeWindow: '1 minute' } },
-}, async (request: FastifyRequest<{ Body: string }>): Promise<{ shortUrl: string }> => {
+  schema: {
+    querystring: { 
+      type: "object", 
+      required: ["url"], 
+      properties: { url: { type: "string" } }
+    },
+    response: { 200: { type: "object", properties: { shortUrl: { type: "string" } } } },
+  },
+}, async (request): Promise<{ shortUrl: string }> => {
   const clientIp = getRequestUserIp(request);
-  const body = JSON.parse(request.body) as ShortUrlBody
+  const url = request.query.url;
   const urlAlias = gerarStringUnica();
   const formedUrl = formShortenedUrl(urlAlias);
-  const isUrl = body.url.includes("http") || body.url.includes("https");
-  if(!body.url || body.url.includes("DROP") || body.url.includes("UPDATE") || !isUrl) {
+  const isUrl = url.includes("http") || url.includes("https");
+  
+  if(!url || url.includes("DROP") || url.includes("UPDATE") || !isUrl) {
     throw new Error('URL is required')
   }
+  
   const payload: CreateUserUrlPayload = {
-    full_url: body.url,
+    full_url: url,
     shortened_url: formedUrl,
     alias: urlAlias,
     user_ip: clientIp,
   };
+  
   const shortenedUrl = await insertShortenedUrl(payload);
   return {shortUrl: shortenedUrl};
 });
