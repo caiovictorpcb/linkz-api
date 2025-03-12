@@ -20,4 +20,4 @@ export const formShortenedUrl = (alias: string): string => {
 export const validateUrl = (url: string): boolean => {
   const urlPattern = /^(https?:\/\/)?([\w-]+(\.[\w-]+)+)([\w.,@?^=%&:/~+#-]*[\w@?^=%&/~+#-])?$/i;
   return urlPattern.test(url);
-}
+} 

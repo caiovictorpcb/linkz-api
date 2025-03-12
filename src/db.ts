@@ -51,7 +51,7 @@ export const insertShortenedUrl = async (
     if (err.code === "23505") {
       // PostgreSQL unique violation error code
       console.warn("Alias collision detected, retrying...");
-      const secondTryShortenedUrl = await insertShortenedUrl(payload);
+      const secondTryShortenedUrl = await insertUserUrl(payload.full_url, payload.user_ip);
       return secondTryShortenedUrl;
     }
     console.error("Database error:", err);
@@ -80,6 +80,7 @@ export const getUserUrlByAlias = async (alias: string): Promise<string> => {
       "SELECT full_url FROM user_urls WHERE alias = $1",
       [alias]
     );
+    console.log({ rows });
     if (rows.length === 0) {
       return "";
     }

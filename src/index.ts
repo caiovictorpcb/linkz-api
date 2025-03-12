@@ -86,6 +86,10 @@ fastify.get<{ Params: { alias: string } }>(
       reply.code(404).send({ error: "Alias not found" });
       return;
     }
+    if (!fullUrl.startsWith('http://') && !fullUrl.startsWith('https://')) {
+      reply.redirect('https://' + fullUrl, 302);
+      return
+    }
     reply.redirect(fullUrl, 302);
   }
 );
