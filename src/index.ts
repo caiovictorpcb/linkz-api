@@ -68,8 +68,7 @@ fastify.get(
     request: FastifyRequest,
     reply: FastifyReply
   ): Promise<{ shortened_url: string; full_url: string }[]> => {
-    const userIp = getRequestUserIp(request);
-    const userUrls = await getUserUrls(userIp);
+    const userUrls = await getUserUrls(request);
     return userUrls;
   }
 );

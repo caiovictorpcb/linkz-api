@@ -1,7 +1,8 @@
+import { FastifyRequest } from "fastify";
 import { fastify } from ".";
 import { gerarStringUnica } from "./shorter";
 import { CreateUserUrlPayload } from "./types/api";
-import { formShortenedUrl } from "./utils";
+import { formShortenedUrl, getRequestUserIp } from "./utils";
 
 export const initDb = async (): Promise<void> => {
   try {
@@ -60,8 +61,9 @@ export const insertShortenedUrl = async (
 };
 
 export const getUserUrls = async (
-  userIp: string
+  request: FastifyRequest
 ): Promise<{ shortened_url: string; full_url: string }[]> => {
+  const userIp = getRequestUserIp(request);
   try {
     const { rows } = await fastify.pg.query(
       "SELECT shortened_url, full_url FROM user_urls WHERE user_ip = $1",
