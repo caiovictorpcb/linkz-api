@@ -80,7 +80,6 @@ export const getUserUrlByAlias = async (alias: string): Promise<string> => {
       "SELECT full_url FROM user_urls WHERE alias = $1",
       [alias]
     );
-    console.log({ rows });
     if (rows.length === 0) {
       return "";
     }
