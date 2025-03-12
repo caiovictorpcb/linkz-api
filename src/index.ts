@@ -93,6 +93,10 @@ fastify.get<{ Params: { alias: string } }>(
   }
 );
 
+fastify.after(() => {
+  fastify.log.info('Using pg-native:', fastify.pg.pool._native !== undefined);
+})
+
 const start = async () => {
   try {
     await fastify.listen({
