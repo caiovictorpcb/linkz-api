@@ -82,6 +82,10 @@ fastify.get<{ Params: { alias: string } }>(
     reply: FastifyReply
   ): Promise<void> => {
     const fullUrl = await getUserUrlByAlias(request.params.alias);
+    if (!fullUrl?.length) {
+      reply.code(404).send({ error: "Alias not found" });
+      return;
+    }
     reply.redirect(fullUrl, 302);
   }
 );
