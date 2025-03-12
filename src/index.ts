@@ -22,6 +22,7 @@ const sslConfig =
 
 fastify.register(fastifyPostgres, {
   connectionString: process.env.DB_CONNECTION_URL,
+  native: true,
   ...sslConfig,
 });
 
@@ -92,6 +93,10 @@ fastify.get<{ Params: { alias: string } }>(
     reply.redirect(fullUrl, 302);
   }
 );
+
+fastify.after(() => {
+  fastify.log.info('Using pg-native:', fastify.pg.pool._native !== undefined);
+})
 
 const start = async () => {
   try {
