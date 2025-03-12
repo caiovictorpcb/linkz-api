@@ -22,7 +22,6 @@ const sslConfig =
 
 fastify.register(fastifyPostgres, {
   connectionString: process.env.DB_CONNECTION_URL,
-  native: true,
   ...sslConfig,
 });
 
