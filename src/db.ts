@@ -1,5 +1,7 @@
 import { fastify } from '.';
+import { gerarStringUnica } from './shorter';
 import { CreateUserUrlPayload } from './types/api';
+import { formShortenedUrl } from './utils';
 
 
 export const initDb = async (): Promise<void> => {
@@ -20,21 +22,29 @@ export const initDb = async (): Promise<void> => {
   }
 };
 
+export const insertUserUrl = async (fullUrl: string, userIp: string): Promise<string> => {
+  const urlAlias = gerarStringUnica();
+  const formattedShortenedUrl = formShortenedUrl(urlAlias);
+  const { rows } = await fastify.pg.query(
+    `
+    INSERT INTO user_urls (alias, full_url, shortened_url, user_ip)
+    VALUES ($1, $2, $3, $4)
+    RETURNING shortened_url
+    `,
+    [urlAlias, fullUrl, formattedShortenedUrl, userIp]
+  );
+  return rows[0].shortened_url;
+}
+
 export const insertShortenedUrl = async (payload: CreateUserUrlPayload): Promise<string> => {
   try {
-    const { rows } = await fastify.pg.query(
-      `
-      INSERT INTO user_urls (alias, full_url, shortened_url, user_ip)
-      VALUES ($1, $2, $3, $4)
-      RETURNING shortened_url
-      `,
-      [payload.alias, payload.full_url, payload.shortened_url, payload.user_ip]
-    );
-    return rows[0].shortened_url;
+    const shortenedUrl = await insertUserUrl(payload.full_url, payload.user_ip);
+    return shortenedUrl;
   } catch (err: any) {
     if (err.code === '23505') { // PostgreSQL unique violation error code
-      console.error('Duplicate alias:', err);
-      throw new Error('Alias already exists');
+      console.warn('Alias collision detected, retrying...');
+      const secondTryShortenedUrl = await insertShortenedUrl(payload);
+      return secondTryShortenedUrl;
     }
     console.error('Database error:', err);
     throw err;
