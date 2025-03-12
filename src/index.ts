@@ -10,14 +10,19 @@ import { getRequestUserIp, validateUrl } from "./utils";
 
 export const fastify: FastifyInstance = Fastify({ logger: true });
 
-const sslConfig = process.env.NODE_ENV === "production" ? {
-  ca: process.env.CA_CERT,
-  rejectUnauthorized: true,
-} : {};
+const sslConfig =
+  process.env.NODE_ENV === "production"
+    ? {
+        ssl: {
+          ca: process.env.CA_CERT,
+          rejectUnauthorized: true,
+        },
+      }
+    : {};
 
 fastify.register(fastifyPostgres, {
   connectionString: process.env.DB_CONNECTION_URL,
-  ...sslConfig
+  ...sslConfig,
 });
 
 fastify.get<{ Querystring: { url: string } }>(
