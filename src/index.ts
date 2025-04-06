@@ -8,17 +8,10 @@ import Fastify, {
   type FastifyInstance,
 } from "fastify";
 import { getUserUrlByAlias, getUserUrls, insertShortenedUrl } from "./db";
+import { settings } from "./settings";
 import { CreateUserUrlPayload } from "./types/api";
 import { getRequestUserIp, validateUrl } from "./utils";
 export const fastify: FastifyInstance = Fastify({ logger: true });
-
-const settings = {
-  DB_CONNECTION_URL: process.env.DB_CONNECTION_URL,
-  REDIS_PASSWORD: process.env.REDIS_PASSWORD,
-  NODE_ENV: process.env.NODE_ENV,
-  CA_CERT: process.env.CA_CERT,
-  PORT: process.env.PORT,
-};
 
 const checkRequiredEnvVars = (requiredVars: string[]) => {
   const missingVars = requiredVars.filter((key) => !process.env[key]);
@@ -59,7 +52,7 @@ fastify.register(fastifyRedis, {
 });
 
 await fastify.register(cors, {
-  origin: ["https://linkz.ki0.tech", "http://localhost:8000"],
+  origin: settings.APP_HOST,
   methods: ["GET", "POST"],
 });
 
