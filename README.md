@@ -1,12 +1,13 @@
-# Linkz API
+# Tools API
 
-**Linkz API** is the backend for a simple and efficient URL shortener I built. Developed with Node.js, Fastify, and PostgreSQL, it powers the Linkz App by handling URL shortening and redirection.
+**Tools API** is the backend for my tools website. Developed with Node.js, Fastify, and PostgreSQL, it powers the Tools App by handling requests from the tools site and routing them to appropriate services.
 
 ## Technologies
 
 - **Node.js**: JavaScript runtime for the backend.
 - **Fastify**: Web framework for building the API.
 - **PostgreSQL**: Database for storing shortened URLs.
+- **Redis**
 
 ## Installation
 
@@ -30,7 +31,7 @@ Start the server:
 bun run start
 ```
 
-The API will be available at `http://localhost:3000` (or your configured port). Use it with the Linkz App frontend to shorten and manage URLs.
+The API will be available at `http://localhost:3000` (or your configured port). Use it with the Tools App frontend.
 
 ## License
 
