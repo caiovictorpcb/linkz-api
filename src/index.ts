@@ -51,8 +51,14 @@ fastify.register(fastifyRedis, {
   tls: {},
 });
 
-await fastify.register(cors, {
-  origin: settings.APP_HOST,
+fastify.register(cors, {
+  origin: (origin, callback) => {
+    if (origin === settings.APP_HOST) {
+      callback(null, true);
+    } else {
+      callback(new Error(), false);
+    }
+  },
   methods: ["GET", "POST"],
 });
 
