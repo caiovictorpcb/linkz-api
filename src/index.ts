@@ -1,4 +1,5 @@
 import cors from "@fastify/cors";
+import helmet from "@fastify/helmet";
 import fastifyPostgres from "@fastify/postgres";
 import rateLimit from "@fastify/rate-limit";
 import fastifyRedis from "@fastify/redis";
@@ -11,6 +12,7 @@ import { getUserUrlByAlias, getUserUrls, insertShortenedUrl } from "./db";
 import { settings } from "./settings";
 import { CreateUserUrlPayload } from "./types/api";
 import { getRequestUserIp, validateUrl } from "./utils";
+
 export const fastify: FastifyInstance = Fastify({ logger: true });
 
 const checkRequiredEnvVars = (requiredVars: string[]) => {
@@ -33,6 +35,20 @@ fastify.register(fastifyPostgres, {
   ...sslConfig,
 });
 
+fastify.register(fastifyRedis, {
+  host: "linkz.redis.cache.windows.net",
+  port: 6380,
+  password: settings.REDIS_PASSWORD,
+  tls: {},
+});
+
+fastify.register(helmet, { global: true });
+
+fastify.register(cors, {
+  origin: [settings.APP_HOST as string],
+  methods: ["GET", "POST"],
+});
+
 fastify.register(rateLimit, {
   global: true,
   max: 100,
@@ -42,24 +58,6 @@ fastify.register(rateLimit, {
     "x-ratelimit-remaining": true,
     "x-ratelimit-reset": true,
   },
-});
-
-fastify.register(fastifyRedis, {
-  host: "linkz.redis.cache.windows.net",
-  port: 6380,
-  password: settings.REDIS_PASSWORD,
-  tls: {},
-});
-
-fastify.register(cors, {
-  origin: (origin, callback) => {
-    if (origin === settings.APP_HOST) {
-      callback(null, true);
-    } else {
-      callback(new Error(), false);
-    }
-  },
-  methods: ["GET", "POST"],
 });
 
 fastify.post<{ Body: { url: string } }>(
@@ -141,9 +139,11 @@ const getRequiredVars = () => {
       "CA_CERT",
       "NODE_ENV",
       "PORT",
+      "APP_HOST",
+      "API_HOST",
     ];
   } else if (environment === "development") {
-    return ["DB_CONNECTION_URL", "REDIS_PASSWORD"];
+    return ["DB_CONNECTION_URL", "REDIS_PASSWORD", "APP_HOST", "API_HOST"];
   } else {
     throw new Error(
       "Invalid NODE_ENV value. Use 'production' or 'development'."
