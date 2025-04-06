@@ -1,4 +1,7 @@
+import cors from "@fastify/cors";
 import fastifyPostgres from "@fastify/postgres";
+import rateLimit from "@fastify/rate-limit";
+import fastifyRedis from "@fastify/redis";
 import Fastify, {
   FastifyReply,
   FastifyRequest,
@@ -7,30 +10,64 @@ import Fastify, {
 import { getUserUrlByAlias, getUserUrls, insertShortenedUrl } from "./db";
 import { CreateUserUrlPayload } from "./types/api";
 import { getRequestUserIp, validateUrl } from "./utils";
-
 export const fastify: FastifyInstance = Fastify({ logger: true });
 
+const settings = {
+  DB_CONNECTION_URL: process.env.DB_CONNECTION_URL,
+  REDIS_PASSWORD: process.env.REDIS_PASSWORD,
+  NODE_ENV: process.env.NODE_ENV,
+  CA_CERT: process.env.CA_CERT,
+  PORT: process.env.PORT,
+};
+
+const checkRequiredEnvVars = (requiredVars: string[]) => {
+  const missingVars = requiredVars.filter((key) => !process.env[key]);
+  return missingVars.length === 0;
+};
+
 const sslConfig =
-  process.env.NODE_ENV === "production"
+  settings.NODE_ENV === "production"
     ? {
         ssl: {
-          ca: process.env.CA_CERT,
+          ca: settings.CA_CERT,
           rejectUnauthorized: true,
         },
       }
     : {};
 
 fastify.register(fastifyPostgres, {
-  connectionString: process.env.DB_CONNECTION_URL,
+  connectionString: settings.DB_CONNECTION_URL,
   ...sslConfig,
 });
 
-fastify.get<{ Querystring: { url: string } }>(
+fastify.register(rateLimit, {
+  global: true,
+  max: 100,
+  timeWindow: "1 minute",
+  addHeaders: {
+    "x-ratelimit-limit": true,
+    "x-ratelimit-remaining": true,
+    "x-ratelimit-reset": true,
+  },
+});
+
+fastify.register(fastifyRedis, {
+  host: "linkz.redis.cache.windows.net",
+  port: 6380,
+  password: settings.REDIS_PASSWORD,
+  tls: {},
+});
+
+await fastify.register(cors, {
+  origin: ["https://linkz.ki0.tech", "http://localhost:8000"],
+  methods: ["GET", "POST"],
+});
+
+fastify.post<{ Body: { url: string } }>(
   "/short",
   {
-    config: { rateLimit: { max: 50, timeWindow: "1 minute" } },
     schema: {
-      querystring: {
+      body: {
         type: "object",
         required: ["url"],
         properties: { url: { type: "string" } },
@@ -42,7 +79,7 @@ fastify.get<{ Querystring: { url: string } }>(
   },
   async (request): Promise<{ shortUrl: string }> => {
     const clientIp = getRequestUserIp(request);
-    const url = request.query.url;
+    const url = request.body.url as string;
     const validUrl = validateUrl(url);
 
     if (!url || !validUrl) {
@@ -55,15 +92,14 @@ fastify.get<{ Querystring: { url: string } }>(
     };
 
     const shortenedUrl = await insertShortenedUrl(payload);
+
     return { shortUrl: shortenedUrl };
   }
 );
 
 fastify.get(
   "/my-urls",
-  {
-    config: { rateLimit: { max: 50, timeWindow: "1 minute" } },
-  },
+  {},
   async (
     request: FastifyRequest,
     reply: FastifyReply
@@ -75,32 +111,59 @@ fastify.get(
 
 fastify.get<{ Params: { alias: string } }>(
   "/:alias",
-  { config: { rateLimit: { max: 50, timeWindow: "1 minute" } } },
+  {},
   async (
     request: FastifyRequest<{ Params: { alias: string } }>,
     reply: FastifyReply
   ): Promise<void> => {
     const fullUrl = await getUserUrlByAlias(request.params.alias);
+    if (fullUrl) {
+      reply.code(200).send({ fullUrl });
+    }
     if (!fullUrl?.length) {
       reply.code(404).send({ error: "Alias not found" });
       return;
     }
-    if (!fullUrl.startsWith('http://') && !fullUrl.startsWith('https://')) {
-      reply.redirect('https://' + fullUrl, 302);
-      return
+    if (!fullUrl.startsWith("http://") && !fullUrl.startsWith("https://")) {
+      reply.redirect("https://" + fullUrl, 302);
+      return;
     }
     reply.redirect(fullUrl, 302);
   }
 );
 
 fastify.after(() => {
-  fastify.log.info('Using pg-native:', fastify.pg.pool._native !== undefined);
-})
+  fastify.log.info("Using pg-native:", fastify.pg.pool._native !== undefined);
+});
+
+const getRequiredVars = () => {
+  const environment = settings.NODE_ENV || "development";
+  if (environment === "production") {
+    return [
+      "DB_CONNECTION_URL",
+      "REDIS_PASSWORD",
+      "CA_CERT",
+      "NODE_ENV",
+      "PORT",
+    ];
+  } else if (environment === "development") {
+    return ["DB_CONNECTION_URL", "REDIS_PASSWORD"];
+  } else {
+    throw new Error(
+      "Invalid NODE_ENV value. Use 'production' or 'development'."
+    );
+  }
+};
 
 const start = async () => {
   try {
+    const requiredVars = getRequiredVars();
+    const isValid = checkRequiredEnvVars(requiredVars);
+    if (!isValid) {
+      throw new Error("Invalid environment variables");
+    }
     await fastify.listen({
-      port: process.env.PORT ? Number(process.env.PORT) : 3000,
+      port: settings.PORT ? Number(settings.PORT) : 3000,
       host: "0.0.0.0",
     });
   } catch (err) {

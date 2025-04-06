@@ -1,5 +1,6 @@
 import { FastifyRequest } from "fastify";
 import { fastify } from ".";
+import { getValueOnRedis, setValueOnRedis } from "./redis";
 import { gerarStringUnica } from "./shorter";
 import { CreateUserUrlPayload } from "./types/api";
 import { formShortenedUrl, getRequestUserIp } from "./utils";
@@ -25,7 +26,7 @@ export const initDb = async (): Promise<void> => {
   }
 };
 
-export const insertUserUrl = async (
+export const insertUrlInDB = async (
   fullUrl: string,
   userIp: string
 ): Promise<string> => {
@@ -39,6 +40,10 @@ export const insertUserUrl = async (
     `,
     [urlAlias, fullUrl, formattedShortenedUrl, userIp]
   );
+  const shortenedUrl = rows[0].shortened_url;
+  if (shortenedUrl) {
+    setValueOnRedis(urlAlias, fullUrl);
+  }
   return rows[0].shortened_url;
 };
 
@@ -46,13 +51,15 @@ export const insertShortenedUrl = async (
   payload: CreateUserUrlPayload
 ): Promise<string> => {
   try {
-    const shortenedUrl = await insertUserUrl(payload.full_url, payload.user_ip);
+    const shortenedUrl = await insertUrlInDB(payload.full_url, payload.user_ip);
     return shortenedUrl;
   } catch (err: any) {
     if (err.code === "23505") {
-      // PostgreSQL unique violation error code
       console.warn("Alias collision detected, retrying...");
-      const secondTryShortenedUrl = await insertUserUrl(payload.full_url, payload.user_ip);
+      const secondTryShortenedUrl = await insertUrlInDB(
+        payload.full_url,
+        payload.user_ip
+      );
       return secondTryShortenedUrl;
     }
     console.error("Database error:", err);
@@ -76,7 +83,7 @@ export const getUserUrls = async (
   }
 };
 
-export const getUserUrlByAlias = async (alias: string): Promise<string> => {
+export const getUrlFromDB = async (alias: string): Promise<string> => {
   try {
     const { rows } = await fastify.pg.query(
       "SELECT full_url FROM user_urls WHERE alias = $1",
@@ -86,6 +93,24 @@ export const getUserUrlByAlias = async (alias: string): Promise<string> => {
       return "";
     }
     return rows[0].full_url;
+  } catch (err) {
+    console.error("Error fetching URL from DB:", err);
+    throw err;
+  }
+};
+
+export const getUserUrlByAlias = async (alias: string): Promise<string> => {
+  try {
+    const urlFromRedis = await getValueOnRedis(alias);
+    if (urlFromRedis) {
+      return urlFromRedis;
+    }
+    const urlFromDB = await getUrlFromDB(alias);
+    if (urlFromDB) {
+      await setValueOnRedis(alias, urlFromDB);
+      return urlFromDB;
+    }
+    return "";
   } catch (err) {
     console.error("Error fetching URL by alias:", err);
     throw err;
