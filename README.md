@@ -13,11 +13,11 @@
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/caiovictorpcb/linkz-api.git
+   git clone https://github.com/caiovictorpcb/tools-api.git
    ```
 2. Navigate to the directory:
    ```bash
-   cd linkz-api
+   cd tools-api
    ```
 3. Install dependencies with Bun:
    ```bash
